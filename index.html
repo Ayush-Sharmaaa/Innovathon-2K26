@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scheme Saathi</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <aside class="side-panel">
+        <div class="brand-block">
+          <p class="eyebrow" data-i18n="brandEyebrow">Citizen support companion</p>
+          <h1 data-i18n="brandTitle">Scheme Saathi</h1>
+          <p class="brand-copy" data-i18n="brandCopy">
+            A bilingual helper that collects a citizen profile, checks eligibility,
+            and guides the application journey step by step.
+          </p>
+        </div>
+
+        <section class="panel-card language-card">
+          <div class="panel-heading">
+            <span data-i18n="languageHeading">Language</span>
+            <span class="status-dot"></span>
+          </div>
+          <div class="language-toggle" role="tablist" aria-label="Language selection">
+            <button class="language-btn is-active" data-language="en" type="button">
+              English
+            </button>
+            <button class="language-btn" data-language="hi" type="button">
+              हिन्दी
+            </button>
+          </div>
+        </section>
+
+        <section class="panel-card">
+          <div class="panel-heading" data-i18n="profileHeading">Profile JSON</div>
+          <pre id="profilePreview" class="profile-preview">{}</pre>
+        </section>
+
+        <section class="panel-card">
+          <div class="panel-heading" data-i18n="engineHeading">Matching engine</div>
+          <ul id="engineStatus" class="status-list">
+            <li data-i18n="engineIdle">Waiting for profile data</li>
+          </ul>
+        </section>
+      </aside>
+
+      <main class="app-card">
+        <header class="app-header">
+          <div>
+            <p class="eyebrow" data-i18n="headerEyebrow">Public schemes discovery</p>
+            <h2 data-i18n="headerTitle">Find the right government schemes faster</h2>
+          </div>
+          <button id="restartBtn" class="ghost-btn" type="button" data-i18n="restart">
+            Restart
+          </button>
+        </header>
+
+        <div id="chatContainer" class="chat-container" aria-live="polite"></div>
+
+        <footer class="composer">
+          <div id="quickActions" class="quick-actions"></div>
+          <form id="chatForm" class="chat-form">
+            <label class="sr-only" for="chatInput">Message</label>
+            <input
+              id="chatInput"
+              class="chat-input"
+              type="text"
+              autocomplete="off"
+              placeholder="Type here"
+            />
+            <button id="sendBtn" class="send-btn" type="submit" data-i18n="send">
+              Send
+            </button>
+          </form>
+        </footer>
+      </main>
+    </div>
+
+    <template id="schemeCardTemplate">
+      <article class="scheme-card">
+        <div class="scheme-card-top">
+          <div>
+            <p class="scheme-badge"></p>
+            <h3 class="scheme-name"></h3>
+          </div>
+          <span class="score-pill"></span>
+        </div>
+        <p class="scheme-why"></p>
+        <div class="scheme-meta"></div>
+        <div class="card-actions">
+          <button class="primary-btn details-btn" type="button"></button>
+          <button class="ghost-btn apply-btn" type="button"></button>
+        </div>
+      </article>
+    </template>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
