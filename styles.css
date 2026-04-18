@@ -154,6 +154,7 @@ h2 {
 .ghost-btn,
 .primary-btn,
 .send-btn,
+.voice-btn,
 .quick-action,
 .option-chip {
   border: 0;
@@ -381,7 +382,8 @@ h2 {
 
 .ghost-btn,
 .primary-btn,
-.send-btn {
+.send-btn,
+.voice-btn {
   padding: 12px 16px;
   font-weight: 700;
 }
@@ -396,6 +398,21 @@ h2 {
 .ghost-btn {
   color: var(--text);
   background: rgba(23, 48, 56, 0.06);
+}
+
+.voice-btn {
+  color: var(--text);
+  background: rgba(23, 48, 56, 0.08);
+}
+
+.voice-btn.is-listening {
+  color: #fff;
+  background: linear-gradient(135deg, #ef7f4d, #d94d4d);
+  box-shadow: 0 10px 22px rgba(217, 77, 77, 0.22);
+}
+
+.voice-btn.is-disabled {
+  opacity: 0.6;
 }
 
 .detail-card {
@@ -495,7 +512,7 @@ h2 {
 
 .chat-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 12px;
 }
 
