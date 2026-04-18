@@ -12,9 +12,12 @@ const translations = {
     headerTitle: "Find the right government schemes faster",
     restart: "Restart",
     send: "Send",
+    voice: "Voice",
+    voiceStop: "Stop",
     assistant: "Assistant",
     user: "You",
     typingPlaceholder: "Type here",
+    voiceListeningPlaceholder: "Listening... speak now",
     greeting:
       "Hello, I'll help you find schemes. Let's build your profile first so I can match the right options.",
     introHint: "You can type answers or tap the suggested choices.",
@@ -97,6 +100,12 @@ const translations = {
     occupationSeniorCitizen: "Senior citizen",
     providerCentral: "Central scheme",
     providerState: "State scheme",
+    voiceUnsupported:
+      "Voice input is not supported in this browser. Please type your answer instead.",
+    voicePermissionDenied:
+      "Microphone permission was blocked. Please allow microphone access and try again.",
+    voiceNoSpeech: "I couldn't hear anything. Please try again.",
+    voiceError: "Voice input stopped unexpectedly. Please try once more.",
     fallbackQuestion:
       "I can explain a listed scheme, show more matches, or restart the profile flow. Try using a scheme name from the cards.",
   },
@@ -113,9 +122,12 @@ const translations = {
     headerTitle: "आपके लिए सही सरकारी योजनाएँ जल्दी खोजें",
     restart: "रीस्टार्ट",
     send: "भेजें",
+    voice: "वॉइस",
+    voiceStop: "रोकें",
     assistant: "सहायक",
     user: "आप",
     typingPlaceholder: "यहाँ लिखें",
+    voiceListeningPlaceholder: "सुन रहा हूँ... अब बोलिए",
     greeting:
       "नमस्ते, मैं आपको योजनाएँ खोजने में मदद करूँगा। पहले आपकी प्रोफ़ाइल बना लेते हैं ताकि सही योजनाएँ मिल सकें।",
     introHint: "आप उत्तर टाइप कर सकते हैं या सुझाए गए विकल्प चुन सकते हैं।",
@@ -198,6 +210,12 @@ const translations = {
     occupationSeniorCitizen: "वरिष्ठ नागरिक",
     providerCentral: "केंद्र योजना",
     providerState: "राज्य योजना",
+    voiceUnsupported:
+      "इस ब्राउज़र में वॉइस इनपुट उपलब्ध नहीं है। कृपया अपना उत्तर टाइप करें।",
+    voicePermissionDenied:
+      "माइक्रोफोन की अनुमति नहीं मिली। कृपया माइक्रोफोन एक्सेस दें और फिर से कोशिश करें।",
+    voiceNoSpeech: "मुझे आपकी आवाज़ सुनाई नहीं दी। कृपया फिर से कोशिश करें।",
+    voiceError: "वॉइस इनपुट बीच में रुक गया। कृपया दोबारा कोशिश करें।",
     fallbackQuestion:
       "मैं सूचीबद्ध योजना समझा सकता हूँ, और मैच दिखा सकता हूँ, या प्रोफ़ाइल फिर से शुरू कर सकता हूँ। कार्ड पर दिख रहे नाम का उपयोग करें।",
   },
@@ -791,12 +809,22 @@ const elements = {
   chatForm: document.querySelector("#chatForm"),
   chatInput: document.querySelector("#chatInput"),
   sendBtn: document.querySelector("#sendBtn"),
+  voiceBtn: document.querySelector("#voiceBtn"),
   quickActions: document.querySelector("#quickActions"),
   profilePreview: document.querySelector("#profilePreview"),
   engineStatus: document.querySelector("#engineStatus"),
   restartBtn: document.querySelector("#restartBtn"),
   languageBtns: Array.from(document.querySelectorAll(".language-btn")),
   schemeCardTemplate: document.querySelector("#schemeCardTemplate"),
+};
+
+const speechState = {
+  recognition: null,
+  supported: false,
+  isListening: false,
+  pendingTranscript: "",
+  shouldAutoSubmit: false,
+  lastError: "",
 };
 
 function t(key) {
@@ -812,9 +840,9 @@ function setLanguage(nextLanguage) {
   document.querySelectorAll("[data-i18n]").forEach((node) => {
     node.textContent = t(node.dataset.i18n);
   });
-  elements.chatInput.placeholder = t("typingPlaceholder");
   renderProfilePreview();
   renderQuickActions();
+  updateVoiceButton();
 }
 
 function createMessageRow(role, contentNode) {
@@ -877,6 +905,124 @@ function addAssistantMessage(texts, options = []) {
 
 function addUserMessage(text) {
   createMessageRow("user", text);
+}
+
+function getSpeechRecognitionConstructor() {
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+function getRecognitionLanguage() {
+  return state.language === "hi" ? "hi-IN" : "en-IN";
+}
+
+function initSpeechRecognition() {
+  const SpeechRecognition = getSpeechRecognitionConstructor();
+  speechState.supported = Boolean(SpeechRecognition);
+
+  if (!speechState.supported) {
+    updateVoiceButton();
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+  recognition.lang = getRecognitionLanguage();
+
+  recognition.onstart = () => {
+    speechState.isListening = true;
+    speechState.lastError = "";
+    speechState.pendingTranscript = "";
+    updateVoiceButton();
+  };
+
+  recognition.onresult = (event) => {
+    let transcript = "";
+
+    for (let index = event.resultIndex; index < event.results.length; index += 1) {
+      transcript += event.results[index][0].transcript;
+    }
+
+    speechState.pendingTranscript = normalizeAnswer(transcript);
+    elements.chatInput.value = speechState.pendingTranscript;
+  };
+
+  recognition.onerror = (event) => {
+    speechState.lastError = event.error || "unknown";
+    speechState.isListening = false;
+    speechState.shouldAutoSubmit = false;
+    updateVoiceButton();
+
+    if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+      addAssistantMessage(t("voicePermissionDenied"));
+      return;
+    }
+
+    if (event.error === "no-speech") {
+      addAssistantMessage(t("voiceNoSpeech"));
+      return;
+    }
+
+    if (event.error !== "aborted") {
+      addAssistantMessage(t("voiceError"));
+    }
+  };
+
+  recognition.onend = () => {
+    const transcript = normalizeAnswer(elements.chatInput.value || speechState.pendingTranscript);
+    const shouldSubmit = speechState.shouldAutoSubmit && transcript && !speechState.lastError;
+
+    speechState.isListening = false;
+    speechState.shouldAutoSubmit = false;
+    speechState.pendingTranscript = "";
+    speechState.lastError = "";
+    updateVoiceButton();
+
+    if (shouldSubmit) {
+      elements.chatInput.value = "";
+      handleSubmittedAnswer(transcript);
+    }
+  };
+
+  speechState.recognition = recognition;
+  updateVoiceButton();
+}
+
+function updateVoiceButton() {
+  const button = elements.voiceBtn;
+  if (!button) {
+    return;
+  }
+
+  button.classList.toggle("is-listening", speechState.isListening);
+  button.classList.toggle("is-disabled", !speechState.supported);
+  button.setAttribute("aria-pressed", speechState.isListening ? "true" : "false");
+  button.textContent = speechState.isListening ? t("voiceStop") : t("voice");
+  button.title = speechState.supported ? button.textContent : t("voiceUnsupported");
+  elements.chatInput.placeholder = speechState.isListening
+    ? t("voiceListeningPlaceholder")
+    : t("typingPlaceholder");
+}
+
+function toggleVoiceInput() {
+  if (!speechState.supported || !speechState.recognition) {
+    addAssistantMessage(t("voiceUnsupported"));
+    return;
+  }
+
+  if (speechState.isListening) {
+    speechState.shouldAutoSubmit = false;
+    speechState.recognition.stop();
+    return;
+  }
+
+  speechState.pendingTranscript = "";
+  speechState.lastError = "";
+  speechState.shouldAutoSubmit = true;
+  speechState.recognition.lang = getRecognitionLanguage();
+  elements.chatInput.value = "";
+  speechState.recognition.start();
 }
 
 function askCurrentQuestion() {
@@ -1678,11 +1824,18 @@ function bindEvents() {
   elements.chatForm.addEventListener("submit", (event) => {
     event.preventDefault();
     const value = elements.chatInput.value;
+
+     if (speechState.isListening && speechState.recognition) {
+      speechState.shouldAutoSubmit = false;
+      speechState.recognition.stop();
+    }
+
     elements.chatInput.value = "";
     handleSubmittedAnswer(value);
   });
 
   elements.restartBtn.addEventListener("click", restartApp);
+  elements.voiceBtn.addEventListener("click", toggleVoiceInput);
 
   elements.languageBtns.forEach((button) => {
     button.addEventListener("click", () => {
@@ -1693,6 +1846,7 @@ function bindEvents() {
 
 function init() {
   bindEvents();
+  initSpeechRecognition();
   setLanguage("en");
   renderProfilePreview();
   updateEngineStatus([t("engineIdle")]);
