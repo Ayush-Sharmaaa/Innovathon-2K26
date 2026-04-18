@@ -9,6 +9,7 @@ Open `index.html` in a browser.
 ## What it includes
 
 - English and Hindi language toggle
+- Browser voice input using Speech Recognition
 - Step-by-step profile collection
 - Structured JSON profile preview
 - Local dataset with 20+ schemes
@@ -21,3 +22,4 @@ Open `index.html` in a browser.
 
 - This is a prototype UI with a handcrafted local dataset.
 - Official links and scheme rules should be re-verified before production deployment.
+- Voice input depends on browser support for the Web Speech API and microphone permissions.
